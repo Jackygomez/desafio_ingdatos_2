@@ -1,18 +1,22 @@
-version: '3'
+version: '3.8'
 services:
   microservice1:
     build:
       context: ./microservice1
     ports:
       - "5001:5001"
-    volumes:
-      - ./microservice1:/app
+    environment:
+      - SQL_SERVER=${SQL_SERVER} 
+      - SQL_USERNAME=${SQL_USERNAME}
+      - SQL_PASSWORD=${SQL_PASSWORD}
   microservice2:
     build:
       context: ./microservice2
     ports:
       - "5002:5002"
-    volumes:
-      - ./microservice2:/app
+    environment:
+      - SQL_SERVER=${SQL_SERVER}
+      - SQL_USERNAME=${SQL_USERNAME}
+      - SQL_PASSWORD=${SQL_PASSWORD}
     depends_on:
       - microservice1

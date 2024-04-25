@@ -1,12 +1,19 @@
-# Proyecto de Microservicios con Python y Docker
+# Proyecto Desafio Ingedatos 2 - SQL Server
 
-Este proyecto consta de dos microservicios:
+Este proyecto consta de dos microservicios que interactúan con una base de datos SQL Server:
 
-1. **Microservicio 1**: Recibe un archivo CSV y lo almacena en una base de datos SQLite.
-2. **Microservicio 2**: Consume la API `postcodes.io` para obtener información de códigos postales y la devuelve al primer microservicio para actualización.
+1. **Microservicio 1**: Recibe un archivo CSV y almacena coordenadas en SQL Server.
+2. **Microservicio 2**: Procesa las coordenadas y obtiene códigos postales usando la API `postcodes.io`.
 
-## Configuración y Ejecución
-1. Clona el repositorio:
-   ```bash
-   git clone https://github.com/Jackygomez/desafio_ingdatos_2.git
-   cd desafio_ingdatos_2
+## Configuración
+
+1. Instala Docker y Docker Compose.
+2. Configura SQL Server y crea una base de datos llamada `employeedirectorydb`.
+3. Asegúrate de tener credenciales para conectarte a SQL Server.
+
+## Ejecución
+
+1. Clona el repositorio y navega al directorio del proyecto.
+2. Asegúrate de tener un archivo `.env` con las credenciales correctas:
+   ```txt
+   SQL_SERVER='employeedirectorydb1.database.windows.net'
