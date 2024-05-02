@@ -11,7 +11,8 @@ def process_csv_file(file):
     """
     try:
         file_text = file.stream.read().decode("utf-8")
-        csv_reader = csv.reader(file_text.splitlines(), delimiter='|', quotechar="'")
+        #csv_reader = csv.reader(file_text.splitlines(), delimiter='|', quotechar="'")
+        csv_reader = csv_reader((line.split('|')[:3] for line in file_text.splitlines()))
         next(csv_reader, None)  # Omitir la cabecera
 
         thread = Thread(target=store_csv_async, args=(csv_reader,))
