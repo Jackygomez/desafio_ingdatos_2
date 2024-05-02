@@ -18,8 +18,31 @@ database = "employeedirectorydb"
 
 # Conexión a SQL Server
 def connect_to_sql_server():
-    cnxn_str = f"Driver={{ODBC Driver 18 for SQL Server}};Server={server},1433;Database={database};UID={username};Pwd={password};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=220;"
+    cnxn_str = f"Driver={{ODBC Driver 18 for SQL Server}};Server={server},1433;Database={database};UID={username};Pwd={password};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
     return pyodbc.connect(cnxn_str)
+
+# Función para convertir a flotante de forma segura
+def safe_float(value):
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+# Inicializa la base de datos y crea la tabla si no existe
+def init_db():
+    with connect_to_sql_server() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'coordinates')
+            CREATE TABLE coordinates (
+                id INT PRIMARY KEY IDENTITY(1,1),
+                latitude FLOAT,
+                longitude FLOAT
+            )
+            """
+        )
+        conn.commit()
 
 # Almacenamiento asíncrono para mejorar el rendimiento
 def store_csv_async(csv_reader):
@@ -50,15 +73,12 @@ def upload_csv():
     
     file_text = file.stream.read().decode("utf-8")
     csv_reader = csv.reader(file_text.splitlines(), delimiter='|', quotechar="'")
+    next(csv_reader, None)  # Omitir la primera línea si es cabecera
 
-    # Omitir la primera línea si es cabecera
-    next(csv_reader, None)
-
-    # Almacenamiento asíncrono para reducir el tiempo de respuesta
     thread = Thread(target=store_csv_async, args=(csv_reader,))
     thread.start() 
-    
-    return jsonify({"message": "File is being processed"}), 202 
+    return jsonify({"message": "File is being processed"}), 202  # Respuesta inmediata
 
 if __name__ == "__main__":
+    init_db()  # Asegúrate de que la tabla se crea al iniciar
     app.run(host="0.0.0.0", port=5001)

@@ -33,7 +33,7 @@ def process_postcodes():
             response = requests.get(f"https://api.postcodes.io/postcodes?lon={longitude}&lat={latitude}")
             data = response.json()
 
-            if data["status"] == 200]:
+            if data["status"] == 200:
                 postcode = data["result"]["postcode"]
                 cursor.execute("UPDATE coordinates SET postcode = ? WHERE id = ?", (postcode, coord[0]))
                 postcodes.append(postcode)
