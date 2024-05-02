@@ -21,14 +21,15 @@ def connect_to_sql_server():
     cnxn_str = f"Driver={{ODBC Driver 18 for SQL Server}};Server={server},1433;Database={database};UID={username};Pwd={password};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
     return pyodbc.connect(cnxn_str)
 
-# Función para convertir a flotante de forma segura
 def safe_float(value):
+    # Eliminar comillas dobles y convertir comas en puntos
+    cleaned_value = value.strip().replace("''", "").replace(",", ".")
+    if cleaned_value.lower() == 'nan':
+        return 0.0  # Trata 'nan' como 0
     try:
-        # Remover comillas simples y convertir comas en puntos para manejar decimales
-        cleaned_value = value.replace("''", "").replace(",", ".")
         return float(cleaned_value)
     except ValueError:
-        return None
+        return None  # Retorna None para cualquier otro valor no convertible
 
 # Inicializa la base de datos y crea la tabla si no existe
 def init_db():
@@ -53,14 +54,15 @@ def store_csv_async(csv_reader):
         conn.autocommit = False
         valid_rows = 0
         for row in csv_reader:
-            latitude, longitude = row
-            latitude = safe_float(latitude)
-            longitude = safe_float(longitude)
-            if latitude is not None and longitude is not None:
-                cursor.execute(
-                    "INSERT INTO coordinates (latitude, longitude) VALUES (?, ?)", (latitude, longitude)
-                )
-                valid_rows += 1
+            if row:
+                latitude_str, longitude_str = row[0], row[1]
+                latitude = safe_float(latitude_str)
+                longitude = safe_float(longitude_str)
+                if latitude is not None and longitude is not None:
+                    cursor.execute(
+                        "INSERT INTO coordinates (latitude, longitude) VALUES (?, ?)", (latitude, longitude)
+                    )
+                    valid_rows += 1
         if valid_rows > 0:
             conn.commit()
         else:
@@ -74,11 +76,11 @@ def upload_csv():
     
     file_text = file.stream.read().decode("utf-8")
     csv_reader = csv.reader(file_text.splitlines(), delimiter='|', quotechar="'")
-    next(csv_reader)  # Omitir la cabecera
+    next(csv_reader, None)  # Omitir la cabecera
     
     thread = Thread(target=store_csv_async, args=(csv_reader,))
     thread.start()
-    thread.join()  # Asegurar que el proceso termine para fines de prueba
+    thread.join()  # Esperar a que el hilo termine para depuración
     
     return jsonify({"message": "File is being processed"}), 202
 
