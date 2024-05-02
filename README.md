@@ -17,3 +17,6 @@ Este proyecto consta de dos microservicios que interactúan con una base de dato
 2. Asegúrate de tener un archivo `.env` con las credenciales correctas:
    ```txt
    SQL_SERVER='employeedirectorydb1.database.windows.net'
+
+## Pruebas unitarias
+1. Para ejecutar las pruebas, puedes utilizar el siguiente comando en la terminal en el directorio de cada microservicio: python -m unittest discover -s tests

@@ -89,7 +89,7 @@ def upload_csv():
     
     thread = Thread(target=store_csv_async, args=(csv_reader,))
     thread.start()
-    #thread.join()  # Esperar a que el hilo termine para depuración
+    thread.join()  # Esperar a que el hilo termine para depuración
     
     return jsonify({"message": "File is being processed"}), 202
 
