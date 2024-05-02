@@ -24,7 +24,9 @@ def connect_to_sql_server():
 # Función para convertir a flotante de forma segura
 def safe_float(value):
     try:
-        return float(value)
+        # Remover comillas simples y convertir comas en puntos para manejar decimales
+        cleaned_value = value.replace("''", "").replace(",", ".")
+        return float(cleaned_value)
     except ValueError:
         return None
 
@@ -48,23 +50,22 @@ def init_db():
 def store_csv_async(csv_reader):
     with connect_to_sql_server() as conn:
         cursor = conn.cursor()
-        conn.autocommit = False  # Uso de transacciones
-        try:
-            for row in csv_reader:
-                latitude_str, longitude_str = row
-                latitude = safe_float(latitude_str)
-                longitude = safe_float(longitude_str)
+        conn.autocommit = False
+        valid_rows = 0
+        for row in csv_reader:
+            latitude, longitude = row
+            latitude = safe_float(latitude)
+            longitude = safe_float(longitude)
+            if latitude is not None and longitude is not None:
+                cursor.execute(
+                    "INSERT INTO coordinates (latitude, longitude) VALUES (?, ?)", (latitude, longitude)
+                )
+                valid_rows += 1
+        if valid_rows > 0:
+            conn.commit()
+        else:
+            conn.rollback()
 
-                if latitude is not None and longitude is not None:
-                    cursor.execute(
-                        "INSERT INTO coordinates (latitude, longitude) VALUES (?, ?)", (latitude, longitude)
-                    )
-            conn.commit()  # Confirmar transacción
-        except Exception as e:
-            conn.rollback()  # Revertir en caso de error
-            raise e  # Re-lanzar el error
-
-# Endpoint para subir el archivo CSV
 @app.route("/upload_csv", methods=["POST"])
 def upload_csv():
     file = request.files.get("file")
@@ -73,12 +74,14 @@ def upload_csv():
     
     file_text = file.stream.read().decode("utf-8")
     csv_reader = csv.reader(file_text.splitlines(), delimiter='|', quotechar="'")
-    next(csv_reader, None)  # Omitir la primera línea si es cabecera
-
+    next(csv_reader)  # Omitir la cabecera
+    
     thread = Thread(target=store_csv_async, args=(csv_reader,))
-    thread.start() 
-    return jsonify({"message": "File is being processed"}), 202  # Respuesta inmediata
+    thread.start()
+    thread.join()  # Asegurar que el proceso termine para fines de prueba
+    
+    return jsonify({"message": "File is being processed"}), 202
 
 if __name__ == "__main__":
-    init_db()  # Asegúrate de que la tabla se crea al iniciar
+    init_db() 
     app.run(host="0.0.0.0", port=5001)

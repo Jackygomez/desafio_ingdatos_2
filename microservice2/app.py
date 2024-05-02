@@ -28,21 +28,28 @@ def process_postcodes():
         coordinates = cursor.fetchall()
 
         postcodes = []
+        errors = []
         for coord in coordinates:
             latitude, longitude = coord[1], coord[2]
-            response = requests.get(f"https://api.postcodes.io/postcodes?lon={longitude}&lat={latitude}")
-            data = response.json()
+            try:
+                response = requests.get(f"https://api.postcodes.io/postcodes?lon={longitude}&lat={latitude}")
+                if response.status_code == 200:
+                    data = response.json()
+                    if data['result'] is not None:
+                        postcode = data['result'][0]['postcode']
+                        cursor.execute("UPDATE coordinates SET postcode = ? WHERE id = ?", (postcode, coord[0]))
+                        postcodes.append(postcode)
+                    else:
+                        errors.append(f"No postcode found for coordinates ({latitude}, {longitude}).")
+                else:
+                    errors.append(f"API request failed for coordinates ({latitude}, {longitude}) with status code {response.status_code}.")
+            except Exception as e:
+                errors.append(f"Error processing coordinates ({latitude}, {longitude}): {str(e)}")
 
-            if data["status"] == 200:
-                postcode = data["result"]["postcode"]
-                cursor.execute("UPDATE coordinates SET postcode = ? WHERE id = ?", (postcode, coord[0]))
-                postcodes.append(postcode)
-            else:
-                return jsonify({"error": f"Error retrieving postcode for {latitude}, {longitude}"}), 400
-        
         conn.commit()
-
-    return jsonify({"postcodes": postcodes}), 200
+        if errors:
+            return jsonify({"errors": errors}), 400
+        return jsonify({"postcodes": postcodes}), 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5002)
