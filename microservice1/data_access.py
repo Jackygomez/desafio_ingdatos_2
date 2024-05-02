@@ -27,13 +27,14 @@ def connect_to_sql_server():
 
 def safe_float(value):
     try:
-        cleaned_value = value.strip().replace("''", "").replace(",", ".")
-        if cleaned_value.lower() == 'nan':
-            return None
-        return float(cleaned_value)
+        clean_value = value.strip("'")
+        clean_value = clean_value.replace(",", ".")
+        if clean_value.lower() == 'nan':
+            return 0.0
+        return float(clean_value)
     except ValueError as e:
         logging.error(f"Error converting {value} to float: {e}")
-        return None
+        return 0.0
 
 def store_csv_async(csv_reader):
     try:
@@ -48,12 +49,13 @@ def store_csv_async(csv_reader):
                 conn.rollback()
                 logging.warning("No valid rows to insert, transaction rolled back.")
     except pyodbc.Error as e:
+        conn.rollback()
         logging.error(f"Database operation failed: {e}", exc_info=True)
         raise
 
 def process_row(cursor, row):
     latitude, longitude = (safe_float(val) for val in row)
-    if None not in (latitude, longitude):
+    if latitude is not None and longitude is not None:
         cursor.execute("INSERT INTO coordinates (latitude, longitude) VALUES (?, ?)", (latitude, longitude))
         return True
     return False
