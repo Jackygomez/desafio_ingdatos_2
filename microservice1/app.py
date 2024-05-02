@@ -4,8 +4,12 @@ import pyodbc
 import csv
 from dotenv import load_dotenv
 from threading import Thread
+import logging
 
 app = Flask(__name__)
+
+# Configurar logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Cargar variables de entorno
 load_dotenv()
@@ -49,24 +53,29 @@ def init_db():
 
 # Almacenamiento asíncrono para mejorar el rendimiento
 def store_csv_async(csv_reader):
-    with connect_to_sql_server() as conn:
-        cursor = conn.cursor()
-        conn.autocommit = False
-        valid_rows = 0
-        for row in csv_reader:
-            if row:
-                latitude_str, longitude_str = row[0], row[1]
-                latitude = safe_float(latitude_str)
-                longitude = safe_float(longitude_str)
-                if latitude is not None and longitude is not None:
-                    cursor.execute(
-                        "INSERT INTO coordinates (latitude, longitude) VALUES (?, ?)", (latitude, longitude)
-                    )
-                    valid_rows += 1
-        if valid_rows > 0:
-            conn.commit()
-        else:
-            conn.rollback()
+    try:
+        with connect_to_sql_server() as conn:
+            cursor = conn.cursor()
+            conn.autocommit = False
+            valid_rows = 0
+            for row in csv_reader:
+                if row:
+                    latitude_str, longitude_str = row[0].strip(), row[1].strip()
+                    latitude = safe_float(latitude_str)
+                    longitude = safe_float(longitude_str)
+                    if latitude is not None and longitude is not None:
+                        cursor.execute(
+                            "INSERT INTO coordinates (latitude, longitude) VALUES (?, ?)", (latitude, longitude)
+                        )
+                        valid_rows += 1
+            if valid_rows > 0:
+                conn.commit()
+                logging.info(f"Committed {valid_rows} rows to the database.")
+            else:
+                conn.rollback()
+                logging.warning("No valid rows to insert, transaction rolled back.")
+    except Exception as e:
+        logging.error("Failed to process CSV: ", exc_info=True)
 
 @app.route("/upload_csv", methods=["POST"])
 def upload_csv():
@@ -80,7 +89,7 @@ def upload_csv():
     
     thread = Thread(target=store_csv_async, args=(csv_reader,))
     thread.start()
-    thread.join()  # Esperar a que el hilo termine para depuración
+    #thread.join()  # Esperar a que el hilo termine para depuración
     
     return jsonify({"message": "File is being processed"}), 202
 
