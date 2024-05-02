@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y unixodbc unixodbc-dev \
 
 WORKDIR /app
 COPY . .
-RUN pip install -r requirements.txt  # Instalar dependencias de Python
+RUN pip install -r requirements.txt
 
 EXPOSE 5002
 CMD ["python", "app.py"]

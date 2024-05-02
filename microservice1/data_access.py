@@ -20,44 +20,36 @@ def connect_to_sql_server():
 
 def safe_float(value):
     cleaned_value = value.strip().replace("''", "").replace(",", ".")
-    if cleaned_value.lower() == 'nan':
-        return 0.0  # Trata 'nan' como 0
-    try:
-        return float(cleaned_value)
-    except ValueError:
-        return None  # Retorna None para cualquier otro valor no convertible
+    return float(cleaned_value) if cleaned_value.lower() != 'nan' else 0.0
 
 # Configura el logging al nivel DEBUG para capturar todos los mensajes
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def store_csv_async(csv_reader):
     try:
-        with connect_to_sql_server() as conn:
-            cursor = conn.cursor()
+        with connect_to_sql_server() as conn, conn.cursor() as cursor:
             conn.autocommit = False
-            valid_rows = 0
-            for row in csv_reader:
-                if row:
-                    latitude_str, longitude_str = row[0].strip(), row[1].strip()
-                    latitude = safe_float(latitude_str)
-                    longitude = safe_float(longitude_str)
-                    if latitude is not None and longitude is not None:
-                        cursor.execute(
-                            "INSERT INTO coordinates (latitude, longitude) VALUES (?, ?)", (latitude, longitude)
-                        )
-                        valid_rows += 1
+            valid_rows = sum(1 for row in csv_reader if process_row(cursor, row))
             if valid_rows > 0:
                 conn.commit()
                 logging.info(f"Committed {valid_rows} rows to the database.")
             else:
                 conn.rollback()
                 logging.warning("No valid rows to insert, transaction rolled back.")
+    except pyodbc.DatabaseError as e:
+        logging.error("Database error: %s", str(e), exc_info=True)
     except Exception as e:
-        logging.error("Failed to process CSV: ", exc_info=True)
+        logging.error("Failed to process CSV: %s", str(e), exc_info=True)
+
+def process_row(cursor, row):
+    latitude, longitude = (safe_float(val) for val in row)
+    if latitude is not None and longitude is not None:
+        cursor.execute("INSERT INTO coordinates (latitude, longitude) VALUES (?, ?)", (latitude, longitude))
+        return True
+    return False
 
 def init_db():
-    with connect_to_sql_server() as conn:
-        cursor = conn.cursor()
+    with connect_to_sql_server() as conn, conn.cursor() as cursor:
         cursor.execute(
             """
             IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'coordinates')
